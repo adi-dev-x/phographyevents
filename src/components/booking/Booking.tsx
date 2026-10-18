@@ -82,6 +82,7 @@ export function Booking() {
   const [errors, setErrors] = useState<Errors>({});
   const [done, setDone] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
+  const formRef = useRef<HTMLFormElement>(null);
   const reduce = useReducedMotion();
   const { prefill } = useBooking();
 
@@ -115,10 +116,22 @@ export function Booking() {
 
   const focusPanel = () => requestAnimationFrame(() => panelRef.current?.querySelector<HTMLElement>('input, select, textarea, button')?.focus({ preventScroll: true }));
 
+  // After a step change, bring the top of the form back into view if the user had scrolled past it.
+  const keepFormInView = () => {
+    const form = formRef.current;
+    if (!form) return;
+    const top = form.getBoundingClientRect().top;
+    if (top < 0 || top > window.innerHeight * 0.5) {
+      const y = top + window.scrollY - (parseFloat(getComputedStyle(document.documentElement).scrollPaddingTop) || 0) - 16;
+      window.scrollTo({ top: y, behavior: reduce ? 'auto' : 'smooth' });
+    }
+  };
+
   const goTo = (target: number) => {
     setDir(target > step ? 1 : -1);
     setErrors({});
     setStep(target);
+    keepFormInView();
     focusPanel();
   };
 
@@ -143,6 +156,7 @@ export function Booking() {
       }
     }
     setDone(true); // Demo only — nothing is sent.
+    keepFormInView();
   };
 
   const reset = () => {
@@ -152,10 +166,11 @@ export function Booking() {
     setDone(false);
   };
 
+  const slide = typeof window !== 'undefined' && window.innerWidth < 600 ? 16 : 40;
   const variants = {
-    enter: (d: number) => (reduce ? { opacity: 0 } : { opacity: 0, x: d * 40 }),
+    enter: (d: number) => (reduce ? { opacity: 0 } : { opacity: 0, x: d * slide }),
     center: { opacity: 1, x: 0 },
-    exit: (d: number) => (reduce ? { opacity: 0 } : { opacity: 0, x: d * -40 }),
+    exit: (d: number) => (reduce ? { opacity: 0 } : { opacity: 0, x: d * -slide }),
   };
 
   return (
@@ -188,7 +203,7 @@ export function Booking() {
           {done ? (
             <Success form={form} onReset={reset} />
           ) : (
-            <form onSubmit={onSubmit} noValidate aria-describedby="booking-proto-note">
+            <form ref={formRef} onSubmit={onSubmit} noValidate aria-describedby="booking-proto-note">
               <ol className="stepper" aria-label="Enquiry progress">
                 {steps.map((label, i) => (
                   <li key={label} className={i === step ? 'is-current' : i < step ? 'is-done' : ''} aria-current={i === step ? 'step' : undefined}>
